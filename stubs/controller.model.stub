@@ -1,0 +1,127 @@
+<?php
+
+namespace {{ namespace }};
+
+use Exception;
+use {{ namespacedModel }};
+use {{ rootNamespace }}Http\Controllers\Controller;
+use {{ namespacedRequests }}
+use App\Repositories\DatabaseRepositoryInterface;
+use Illuminate\Support\Facades\Request;
+use App\Helpers\ListingHelper;
+use App\Repositories\{{ model }}Repository;
+
+class {{ class }} extends Controller
+{
+
+    protected ${{ model }}Repository;
+    protected $databaseRepository;
+
+    /**
+    * Constructor for the controller.
+    *
+    * @param \App\Repositories\{{ model }}Repository
+    *   The repository responsible for handling {{ model }}-related data.
+    */
+    public function __construct({{ model }}Repository ${{ model }}Repository,DatabaseRepositoryInterface $databaseRepository)
+    {
+        $this->{{ model }}Repository = ${{ model }}Repository;
+        $this->databaseRepository = $databaseRepository;
+
+    }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        if ($request->ajax()) {
+            $data = $this->{{ model }}Repository->getAll();
+            $fields = array(
+                'actions' => function ($data) { 
+                    return '<a href="' . route('{{ model }}.edit', $data->id) . '" class="btn btn-sm btn-primary" data-id="' . $data->id . '">Edit</a>  ' . '<button class="btn btn-sm btn-danger deleteData" onClick="deleteData(\'' . route('{{ model }}.destroy', ['{{ model }}' => $data->id]) . '\')">Delete</button>';
+                }
+                
+            );
+            return ListingHelper::list($data,$fields);
+        }
+        return view('{{ model }}.index');
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $form = json_encode({{ model }}::getListing());
+        return view('{{ model }}.create', compact('form'));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store({{ storeRequest }} $request)
+    {
+        try {
+            $data = $request->except(['_method','_token']);
+            $this->{{ model }}Repository->store($data);
+            $this->sendResponse(__('messages.create', ['Name' => '{{ model }}']));
+        } catch (Exception $e) {
+            $this->sendResponse($e->getMessage(), self::ERROR);
+        }
+        return redirect()->route('{{ model }}.index');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show({{ model }} ${{ modelVariable }})
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit({{ model }} ${{ modelVariable }})
+    {
+        ${{ model }} = $this->{{ model }}Repository->find(${{ modelVariable }});
+        $dynamic_form_fields = $this->databaseRepository->getColumnDataByTableNameHTML('{{ model }}');
+        foreach($dynamic_form_fields as $key => $value){
+            $dynamic_form_fields[$key]->old_value = ${{ model }}->toArray()[$value->column_name];
+        }
+        $dynamic_form_fields = json_encode($dynamic_form_fields);
+        return view('{{ model }}.edit', compact('{{ model }}', 'dynamic_form_fields'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update({{ updateRequest }} $request, {{ model }} ${{ modelVariable }})
+    {
+        try {
+            $data = $request->except(['_method','_token','id']);
+            $this->{{ model }}Repository->update(${{ modelVariable }}, $data);
+            $this->sendResponse(__('messages.update', ['Name' => '{{ model }}']));
+        } catch (Exception $e) {
+            $this->sendResponse($e->getMessage(), self::ERROR);
+        }
+
+        return redirect()->route('{{ model }}.index');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy({{ model }} ${{ modelVariable }})
+    {
+         try {
+            $this->{{ model }}Repository->destroy(${{ modelVariable }});
+            $this->sendResponse(__('messages.delete', ['Name' => '{{ model }}']));
+            return self::SUCCESS;
+        } catch (Exception $e) {
+            $this->sendResponse($e->getMessage(), self::ERROR);
+            return self::ERROR;
+        }
+    }
+}
